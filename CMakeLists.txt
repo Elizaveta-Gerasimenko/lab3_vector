@@ -1,49 +1,30 @@
-cmake_minimum_required(VERSION 3.10)
-project(MyCppProject LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.14)
+project(MyProject)
 
-# Enable C++23 features
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Platform-agnostic shared library configuration
-option(BUILD_SHARED_LIBS "Build shared library" ON)
+# Компиляция динамической библиотеки
+add_library(MyLibrary STATIC src/library.cpp)
 
-# Enable testing
+# Указываем, где искать заголовочные файлы
+target_include_directories(MyLibrary PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# Подключаем Google Test через FetchContent
+include(FetchContent)
+FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/release-1.12.1.zip
+)
+
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
 enable_testing()
 
-# Configure shared library
-add_library(MyLibrary SHARED
-        src/library.cpp
-        include/library.hpp
-)
+# Создаём тестовый исполняемый файл
+add_executable(MyLibraryTest tests/test_basic.cpp)
+target_link_libraries(MyLibraryTest PRIVATE MyLibrary gtest_main)
 
-# Public headers location
-target_include_directories(MyLibrary PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-)
-
-# Platform-specific settings
-if(MSVC)
-    target_compile_options(MyLibrary PRIVATE /W4 /WX)
-else()
-    target_compile_options(MyLibrary PRIVATE -Wall -Wextra -Wpedantic -Werror)
-    target_compile_options(MyLibrary PRIVATE -fPIC)  # Needed for shared libs on Unix
-endif()
-
-# Configure tests
-find_package(GTest REQUIRED)
-
-add_executable(MyLibraryTests
-        tests/test_basic.cpp
-)
-
-target_link_libraries(MyLibraryTests
-        PRIVATE
-        MyLibrary
-        GTest::GTest
-)
-
-# Enable CTest integration
-add_test(NAME MyLibraryTests COMMAND MyLibraryTests)
+include(GoogleTest)
+gtest_discover_tests(MyLibraryTest)
